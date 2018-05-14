@@ -1,19 +1,23 @@
-#####################################################
-#				                    #
-#    Audit script V3 by Alan Renouf - Virtu-Al      #
-#    Blog: http://virtu-al.net/	                    #
-#	     		                            #
-#    Usage: Audit.ps1 'pathtolistofservers'         #
-# 			                            #
-#    The file is optional and needs to be a 	    #
-#	 plain text list of computers to be audited #
-#	 one on each line, if no list is specified  #
-#	 the local machine will be audited.         # 
-#                                                   #
-#####################################################
+<#
+.SYNOPSIS
+A PowerShell Script which audits your machine for current configurations.
+
+.DESCRIPTION
+A PowerShell Script which audits your Windows Workstation or Server either as a singe machine or en-mass for their current configuration. 
+A text file can be louded as a parameter to the script call, and it will attempt to gather that information via those machines.
+
+.EXAMPLE
+To audit the current machine in user context:
+PS C:\Users\Username\Desktop\Audit.ps1
+
+To audit a list of machine via a text file (one machine per line):
+PS C:\Users\Username\Desktop\Audit.ps1 C:\Some\Path\To\Serverlist.txt
+
+.NOTES
+Original scripted created by Alan Renouf - Virtu-Al.net 
+#>
 
 param( [string] $auditlist)
-
 Function Get-CustomHTML ($Header){
 $Report = @"
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN" "http://www.w3.org/TR/html4/frameset.dtd">
@@ -62,7 +66,6 @@ if(!document.getElementById)
 </head>
 <body>
 <b><font face="Arial" size="5">$($Header)</font></b><hr size="8" color="#CC0000">
-<font face="Arial" size="1"><b>Version 3 by Alan Renouf virtu-al.net</b></font><br>
 <font face="Arial" size="1">Report created on $(Get-Date)</font>
 <div class="filler"></div>
 <div class="filler"></div>
@@ -279,14 +282,14 @@ Write-Output "Collating Detail for $Target"
 		Write-Output "..Hotfix Information"
 		$colQuickFixes = Get-WmiObject Win32_QuickFixEngineering
 		$MyReport += Get-CustomHeader "2" "HotFixes"
-			$MyReport += Get-HTMLTable ($colQuickFixes | Where {$_.HotFixID -ne "File 1" } |Select HotFixID, Description)
+			$MyReport += Get-HTMLTable ($colQuickFixes | Where-Object {$_.HotFixID -ne "File 1" } |Select-Object HotFixID, Description)
 		$MyReport += Get-CustomHeaderClose
 		Write-Output "..Logical Disks"
 		$Disks = Get-WmiObject -ComputerName $Target Win32_LogicalDisk
 		$MyReport += Get-CustomHeader "2" "Logical Disk Configuration"
 			$LogicalDrives = @()
-			Foreach ($LDrive in ($Disks | Where {$_.DriveType -eq 3})){
-				$Details = "" | Select "Drive Letter", Label, "File System", "Disk Size (MB)", "Disk Free Space", "% Free Space"
+			Foreach ($LDrive in ($Disks | Where-Object {$_.DriveType -eq 3})){
+				$Details = "" | Select-Object "Drive Letter", Label, "File System", "Disk Size (MB)", "Disk Free Space", "% Free Space"
 				$Details."Drive Letter" = $LDrive.DeviceID
 				$Details.Label = $LDrive.VolumeName
 				$Details."File System" = $LDrive.FileSystem
@@ -301,8 +304,8 @@ Write-Output "Collating Detail for $Target"
 		$Adapters = Get-WmiObject -ComputerName $Target Win32_NetworkAdapterConfiguration
 		$MyReport += Get-CustomHeader "2" "NIC Configuration"
 			$IPInfo = @()
-			Foreach ($Adapter in ($Adapters | Where {$_.IPEnabled -eq $True})) {
-				$Details = "" | Select Description, "Physical address", "IP Address / Subnet Mask", "Default Gateway", "DHCP Enabled", DNS, WINS
+			Foreach ($Adapter in ($Adapters | Where-Object {$_.IPEnabled -eq $True})) {
+				$Details = "" | Select-Object Description, "Physical address", "IP Address / Subnet Mask", "Default Gateway", "DHCP Enabled", DNS, WINS
 				$Details.Description = "$($Adapter.Description)"
 				$Details."Physical address" = "$($Adapter.MACaddress)"
 				If ($Adapter.IPAddress -ne $Null) {
@@ -327,7 +330,7 @@ Write-Output "Collating Detail for $Target"
 		{
 			Write-Output "..Software"
 			$MyReport += Get-CustomHeader "2" "Software"
-				$MyReport += Get-HTMLTable (get-wmiobject -ComputerName $Target Win32_Product | select Name,Version,Vendor,InstallDate)
+				$MyReport += Get-HTMLTable (get-wmiobject -ComputerName $Target Win32_Product | Select-Object Name,Version,Vendor,InstallDate)
 			$MyReport += Get-CustomHeaderClose
 		}
 		Else {
@@ -336,19 +339,19 @@ Write-Output "Collating Detail for $Target"
 		Write-Output "..Local Shares"
 		$Shares = Get-wmiobject -ComputerName $Target Win32_Share
 		$MyReport += Get-CustomHeader "2" "Local Shares"
-			$MyReport += Get-HTMLTable ($Shares | Select Name, Path, Caption)
+			$MyReport += Get-HTMLTable ($Shares | Select-Object Name, Path, Caption)
 		$MyReport += Get-CustomHeaderClose
 		Write-Output "..Printers"
 		$InstalledPrinters =  Get-WmiObject -ComputerName $Target Win32_Printer
 		$MyReport += Get-CustomHeader "2" "Printers"
-			$MyReport += Get-HTMLTable ($InstalledPrinters | Select Name, Location)
+			$MyReport += Get-HTMLTable ($InstalledPrinters | Select-Object Name, Location)
 		$MyReport += Get-CustomHeaderClose
 		Write-Output "..Services"
 		$ListOfServices = Get-WmiObject -ComputerName $Target Win32_Service
 		$MyReport += Get-CustomHeader "2" "Services"
 			$Services = @()
 			Foreach ($Service in $ListOfServices){
-				$Details = "" | Select Name,Account,"Start Mode",State,"Expected State"
+				$Details = "" | Select-Object Name,Account,"Start Mode",State,"Expected State"
 				$Details.Name = $Service.Caption
 				$Details.Account = $Service.Startname
 				$Details."Start Mode" = $Service.StartMode
@@ -411,7 +414,7 @@ Write-Output "Collating Detail for $Target"
 			$MyReport += Get-CustomHeader "2" "Event Log Settings"
 			$LogSettings = @()
 			Foreach ($Log in $LogFiles){
-				$Details = "" | Select "Log Name", "Overwrite Outdated Records", "Maximum Size (KB)", "Current Size (KB)"
+				$Details = "" | Select-Object "Log Name", "Overwrite Outdated Records", "Maximum Size (KB)", "Current Size (KB)"
 				$Details."Log Name" = $Log.LogFileName
 				If ($Log.OverWriteOutdated -lt 0)
 					{
@@ -438,13 +441,13 @@ Write-Output "Collating Detail for $Target"
 			$WmidtQueryDT = [System.Management.ManagementDateTimeConverter]::ToDmtfDateTime([DateTime]::Now.AddDays(-14))
 			$LoggedErrors = Get-WmiObject -computer $Target -query ("Select * from Win32_NTLogEvent Where Type='Error' and TimeWritten >='" + $WmidtQueryDT + "'")
 			$MyReport += Get-CustomHeader "2" "ERROR Entries"
-				$MyReport += Get-HTMLTable ($LoggedErrors | Select EventCode, SourceName, @{N="Time";E={$_.ConvertToDateTime($_.TimeWritten)}}, LogFile, Message)
+				$MyReport += Get-HTMLTable ($LoggedErrors | Select-Object EventCode, SourceName, @{N="Time";E={$_.ConvertToDateTime($_.TimeWritten)}}, LogFile, Message)
 			$MyReport += Get-CustomHeaderClose
 			Write-Output "..Event Log Warnings"
 			$WmidtQueryDT = [System.Management.ManagementDateTimeConverter]::ToDmtfDateTime([DateTime]::Now.AddDays(-14))
 			$LoggedWarning = Get-WmiObject -computer $Target -query ("Select * from Win32_NTLogEvent Where Type='Warning' and TimeWritten >='" + $WmidtQueryDT + "'")
 			$MyReport += Get-CustomHeader "2" "WARNING Entries"
-				$MyReport += Get-HTMLTable ($LoggedWarning | Select EventCode, SourceName, @{N="Time";E={$_.ConvertToDateTime($_.TimeWritten)}}, LogFile, Message)
+				$MyReport += Get-HTMLTable ($LoggedWarning | Select-Object EventCode, SourceName, @{N="Time";E={$_.ConvertToDateTime($_.TimeWritten)}}, LogFile, Message)
 			$MyReport += Get-CustomHeaderClose
 		$MyReport += Get-CustomHeaderClose
 		$MyReport += Get-CustomHeaderClose
@@ -455,5 +458,5 @@ Write-Output "Collating Detail for $Target"
 	$Date = Get-Date
 	$Filename = ".\" + $Target + "_" + $date.Hour + $date.Minute + "_" + $Date.Day + "-" + $Date.Month + "-" + $Date.Year + ".htm"
 	$MyReport | out-file -encoding ASCII -filepath $Filename
-	Write "Audit saved as $Filename"
+	Write-Output "Audit saved as $Filename"
 }
